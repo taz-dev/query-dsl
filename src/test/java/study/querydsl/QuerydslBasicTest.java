@@ -226,7 +226,7 @@ public class QuerydslBasicTest {
         assertThat(teamB.get(member.age.avg())).isEqualTo(35); //(30 + 40) / 2
     }
 
-    //조인
+    //조인(기본 조인)
     //조인의 기본 문법은 첫 번째 파라미터에 조인 대상을 지정하고,
     //두 번째 파라미터에 별칭으로 사용할 Q타입을 지정한다
     //ex) 팀 A에 소속된 모든 회원
@@ -261,4 +261,45 @@ public class QuerydslBasicTest {
               .extracting("username")
               .containsExactly("teamA", "teamB");
   }
+
+  //조인(on절)
+  //1. 조인 대상 필터링
+  //ex) 회원과 팀을 조인하면서, 팀 이름이 teamA인 팀만 조인, 회원은 모두 조회
+  //JPQL: SELECT m, t FROM Member m LEFT JOIN m.team t on t.name = 'teamA'
+  //SQL: SELECT m.*, t.* FROM Member m LEFT JOIN Team t ON m.TEAM_ID and t.name = 'teamA'
+  @Test
+  public void join_on_filtering() throws Exception {
+      List<Tuple> result = queryFactory
+              .select(member, team)
+              .from(member)
+              .leftJoin(member.team, team)
+              .on(team.name.eq("teamA"))
+              //.where(team.name.eq("teamA")) //inner조인일 경우는 on말고 where절 사용
+              .fetch();
+
+      for (Tuple tuple : result) {
+          System.out.println("tuple = " + tuple);
+      }
+  }
+
+  //2. 연관관계 없는 엔티티 외부 조인
+  //ex) 회원의 이름과 팀의 이름이 같은 대상 외부 조인
+  //JPQL: SELECT m, t FROM Member m LEFT JOIN Team t on m.username = t.name
+  //SQL: SELECT m.*, t.* FROM Member m LEFT JOIN Team t ON m.username = t.name
+  @Test
+  public void join_on_no_relation() throws Exception {
+        em.persist(new Member("teamA"));
+        em.persist(new Member("teamB"));
+
+      List<Tuple> result = queryFactory
+              .select(member, team)
+              .from(member)
+              .leftJoin(team).on(member.username.eq(team.name))
+              .fetch();
+
+      for (Tuple tuple : result) {
+          System.out.println("tuple = " + tuple);
+      }
+  }
+
 }
